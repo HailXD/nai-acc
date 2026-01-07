@@ -23,6 +23,10 @@ from PyQt6.QtWidgets import (
 
 DB_PATH = Path(__file__).with_name("emails.db")
 STATUSES = ["unused", "using", "used", "leftover"]
+STATUS_SORT = ["using", "unused", "leftover", "used"]
+STATUS_SORT_CLAUSE = "CASE status " + " ".join(
+    f"WHEN '{status}' THEN {index}" for index, status in enumerate(STATUS_SORT)
+) + f" ELSE {len(STATUS_SORT)} END"
 
 with open('base.txt', 'r', encoding='utf-8') as f:
     SEED_TEXT = f.read()
@@ -121,7 +125,7 @@ class EmailChecklistApp(QMainWindow):
         self.table = QTableWidget()
         self.table.setColumnCount(3)
         self.table.setHorizontalHeaderLabels(["Email", "Status", "Number"])
-        self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+        self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectItems)
         self.table.setSelectionMode(QTableWidget.SelectionMode.ExtendedSelection)
         self.table.setSortingEnabled(False)
         self.table.horizontalHeader().setSectionResizeMode(
@@ -146,7 +150,8 @@ class EmailChecklistApp(QMainWindow):
         self._loading = True
         self.table.setRowCount(0)
         cursor = self.conn.execute(
-            "SELECT id, email, status, number FROM emails ORDER BY id"
+            "SELECT id, email, status, number FROM emails "
+            f"ORDER BY {STATUS_SORT_CLAUSE}, id"
         )
         for row_index, (row_id, email, status, number) in enumerate(cursor.fetchall()):
             self.table.insertRow(row_index)
