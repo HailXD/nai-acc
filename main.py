@@ -19,6 +19,7 @@ from PyQt6.QtWidgets import (
     QVBoxLayout,
     QWidget,
     QHeaderView,
+    QToolTip,
 )
 
 DB_PATH = Path(__file__).with_name("emails.db")
@@ -141,10 +142,12 @@ class EmailChecklistApp(QMainWindow):
         layout.addLayout(form_layout)
         layout.addWidget(self.table)
         self.setCentralWidget(container)
+        self.statusBar()
 
         add_button.clicked.connect(self._add_email)
         delete_button.clicked.connect(self._delete_selected)
         self.table.itemChanged.connect(self._on_item_changed)
+        self.table.cellClicked.connect(self._copy_email_from_click)
 
     def _load_rows(self) -> None:
         self._loading = True
@@ -248,6 +251,20 @@ class EmailChecklistApp(QMainWindow):
         number = item.text().strip() or None
         self.conn.execute("UPDATE emails SET number = ? WHERE id = ?", (number, row_id))
         self.conn.commit()
+
+    def _copy_email_from_click(self, row: int, column: int) -> None:
+        if column != 0:
+            return
+        item = self.table.item(row, 0)
+        if item is None:
+            return
+        email = item.text().strip()
+        if not email:
+            return
+        QApplication.clipboard().setText(email)
+        self.statusBar().showMessage(f"Copied {email}", 1500)
+        rect = self.table.visualItemRect(item)
+        QToolTip.showText(self.table.viewport().mapToGlobal(rect.center()), "Copied")
 
     def closeEvent(self, event) -> None:  # noqa: N802 - Qt uses camelCase
         self.conn.close()
